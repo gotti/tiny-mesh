@@ -1,6 +1,7 @@
+#pragma once
 #include <queue>
 #include <vector>
-#include <algorithm>
+#include <mutex>
 
 /*
  * Address specification:
@@ -14,7 +15,7 @@ typedef unsigned char Address;
 
 /*
  * tiny-ip flag specification:
- * nhops is hop count ttl, similar to ttl. tiny-rip supports 4-hops in default. (you can easily extend this limit.)
+ * nhops is hop count, similar to ttl. tiny-rip supports 4-hops in default. (you can easily extend this limit.)
  * protocol is next protocol number.
  * when autoroute==1, relay node determine next hop automatically by its routing table, without using TinyIpPacket.hops
  * unreachable is similar to ICMP unreachable. tiny-icmp is not exist, however, this role is embedded in tiny-ip.
@@ -102,7 +103,7 @@ struct TinyRipPacket{
 
 /*
  * tiny-rip protocol specification:
- * tiny-rip generally receive broadcast and send broadcast. For avoiding packet loop, incrementing nhops and adding all relay nodes' address to hops are needed
+ * tiny-rip generally receive and send broadcast packet. For avoiding packet loop, incrementing nhops and adding all relay nodes' address to hops are needed
  * tiny-rip is to determine routes. In tiny-rip, node have a routing table, which contains list of nodes.
  * Example:
  *   A-B-C-D
@@ -148,24 +149,26 @@ class TinyConnection{
     std::queue<TinyIpPacket> sendQueue;
     std::queue<TinyIpPacket> recvQueue;
 public:
-    bool canRead();
-    bool canSend(Address dst);
-    void Send(char* payload, int length);
 };
 
-class TinyArp{
+class PortTable{
     Address table[32];
 public:
-    TinyArp();
+    PortTable();
     void AddRoute(int virtualPort, int address);
     void DelRoute(int virtualPort);
     Address GetRoute(int virtualPort);
 };
 
 class TinyNet{
+    std::mutex mtx_;
     Address myAddress;
     RoutingTable *routes;
-    std::vector<TinyConnection> connections;
+    PortTable *portTable;
+    std::vector<TinyConnection*> connections;
 public:
     TinyNet(Address myAddress);
+    Address InitConnection();
+    TinyConnection* GetConnection(Address ConNumber);
+    void Send(char* payload, int length);
 };

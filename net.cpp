@@ -1,4 +1,5 @@
 #include <string.h>
+#include <mutex>
 #include "net.hpp"
 
 void TinyIp::SetFlag(TinyIpPacket *p, IpFlag f){
@@ -45,21 +46,28 @@ RoutingTable::RoutingTable(){
     memset(routes, 0, sizeof(routes));
 }
 
+PortTable::PortTable(){
+    memset(table, 0, sizeof(table));
+}
+
 TinyNet::TinyNet(Address addr){
     myAddress = addr;
     RoutingTable *table = new RoutingTable(); //allocate on heap
     routes = table;
+    PortTable *porttable = new PortTable();
+    portTable = porttable;
 }
 
-bool TinyNet::canRead(){
-    return recvQueue.size()!=0;
-}
+Address TinyNet::InitConnection(){
+    std::lock_guard<std::mutex> lock(mtx_);
+    TinyConnection *conn = new TinyConnection{};
+    connections.push_back(conn);
+    size_t s = connections.size();
+    return s-1;
+};
 
-bool TinyNet::canSend(Address dst){
-    Hops dstRoute = routes->GetRoute(dst, 0);
-    Hops hops = Hops();
-    memset(&hops, 0, sizeof(Hops));
-    return memcmp(&dstRoute, &hops, sizeof(Hops))!=0;
+TinyConnection* TinyNet::GetConnection(Address conNumber){
+    return connections.at(conNumber);
 }
 
 void TinyNet::Send(char* payload, int length){
@@ -70,4 +78,5 @@ void TinyNet::Send(char* payload, int length){
     udpUtil.SetFlag(udpp, TinyUdpFlag{});
     TinyIpPacket *ipp = new TinyIpPacket();
     TinyIp ipUtil = TinyIp();
+    ipUtil.SetSrc(ipp, myAddress);
 }
