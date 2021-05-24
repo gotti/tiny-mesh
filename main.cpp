@@ -3,6 +3,8 @@
 
 int main(){
     TinyNet *n = new TinyNet(30);
-    TinyConnection* con = n->InitConnection(29);
-    con->Send();
+    TinyUdpPortNumber portNum = TinyUdpPortNumber{0,0};
+    TinyConnection* con = n->InitConnection(portNum,29);
+    char data[TINYUDP_PAYLOAD_MAX] = "aiueo";
+    con->Send(n->GetRoute(),data,TINYUDP_PAYLOAD_MAX);
 }

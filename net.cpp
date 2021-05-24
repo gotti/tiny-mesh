@@ -1,4 +1,5 @@
 #include <string.h>
+#include <string>
 #include <mutex>
 #include "net.hpp"
 
@@ -11,12 +12,19 @@ void TinyIp::SetDst(TinyIpPacket *p, Address dst){
 void TinyIp::SetSrc(TinyIpPacket *p, Address src){
     p->src = src;
 }
-void TinyIp::SetHop(TinyIpPacket *p, Address *hop){
-    memcpy(p->hops, hop, sizeof(Address)*4); //?
+void TinyIp::SetHop(TinyIpPacket *p, Hops hop){
+    memcpy(p->hops, &hop, sizeof(Address)*4); //?
 }
 void TinyIp::SetPayload(TinyIpPacket *p, char* payload, int length){
-    memset(p->payload, 0, 24);
-    memcpy(p->payload, payload, length>24 ? 24 : length);
+    memset(p->payload, 0, TINYIP_PAYLOAD_MAX);
+    memcpy(p->payload, payload, length>TINYIP_PAYLOAD_MAX ? TINYIP_PAYLOAD_MAX : length);
+}
+std::string TinyIp::print(TinyIpPacket *p){
+    std::string ret;
+//    ret += "src:" + std::to_string(p->src);
+//    ret += "\ndst:" + std::to_string(p->dst);
+//    ret += "\npayload:" + std::string(p->payload);
+    return ret;
 }
 
 
@@ -37,13 +45,21 @@ void TinyUdp::CalcChecksum(TinyUdpPacket *p){
     p->chechsum = sum;
 }
 void TinyUdp::SetPayload(TinyUdpPacket *p, char *payload, int length){
-    memset(p->payload, 0, 20);
-    memcpy(p->payload, payload, 20);
+    memset(p->payload, 0, TINYUDP_PAYLOAD_MAX);
+    memcpy(p->payload, payload, length>TINYUDP_PAYLOAD_MAX?TINYUDP_PAYLOAD_MAX:length);
 }
 
 
 RoutingTable::RoutingTable(){
     memset(routes, 0, sizeof(routes));
+}
+
+Hops RoutingTable::GetRoute(Address dst, int index){
+    if (0 <= index && index <= 31){
+        return routes[dst][index];
+    }else{
+        return Hops();
+    }
 }
 
 TinyNet::TinyNet(Address addr){
@@ -52,33 +68,65 @@ TinyNet::TinyNet(Address addr){
     routes = table;
 }
 
-TinyConnection* TinyNet::InitConnection(Address dst){
+TinyConnection* TinyNet::InitConnection(TinyUdpPortNumber portNum, Address dst){
     std::lock_guard<std::mutex> lock(mtx_);
     TinyConnection *conn = new TinyConnection{};
     connections.push_back(conn);
     conn->src = myAddress;
     conn->dst = dst;
+    conn->portNum = portNum;
     return conn;
 };
 
-RoutingTable* TinyNet::GetRoutes(){
+RoutingTable* TinyNet::GetRoute(){
     return routes;
+}
+
+// from https://qiita.com/tk23ohtani/items/4d344db7375c8d96472b
+void hex_dmp(const void *buf, int size)
+{
+    int i,j;
+    unsigned char *p = (unsigned char *)buf, tmp[20];
+
+    printf("+0 +1 +2 +3 +4 +5 +6 +7 +8 +9 +A +B +C +D +E +F|  -- ASCII --\r\n");
+    printf("--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+----------------\r\n");
+    for (i=0; p-(unsigned char *)buf<size; i++) {
+        for (j=0; j<16; j++) {
+            tmp[j] = (unsigned char)((*p<0x20||*p>=0x7f)? '.': *p);
+            printf("%02X ", (int)*p);
+            if (++p-(unsigned char *)buf>=size) {
+                tmp[++j] = '\0';
+                for (;j<16;j++) {
+                    printf("   ");
+                }
+                break;
+            }
+        }
+        tmp[16] = '\0';
+        printf("%s\r\n", tmp);
+        if (p-(unsigned char *)buf>=size) {
+            break;
+        }
+    }
 }
 
 void TinyConnection::Send(RoutingTable* routes, char* payload, int length){
     TinyUdpPacket *udpp = new TinyUdpPacket();
-    TinyUdp::SetPayload(udpp, payload, length>20?20:length);
+    TinyUdp::SetPayload(udpp, payload, length);
     TinyUdp::SetSeq(udpp, 0);
     TinyUdp::SetFlag(udpp, TinyUdpFlag{});
+    hex_dmp(udpp, TINYUDP_PAYLOAD_MAX);
 
     TinyIpPacket *ipp = new TinyIpPacket();
     TinyIp::SetSrc(ipp, src);
     Hops hops = routes->GetRoute(dst, 0);
     TinyIp::SetDst(ipp, dst);
     TinyIp::SetFlag(ipp, IpFlag{.nhops = 0, .protocol = 0b011, .autoroute = 0, .unreachable = 0, .echorequest = 0});
-    TinyIp::SetPayload(ipp, (char*)udpp, 24);
+    TinyIp::SetPayload(ipp, (char*)udpp, TINYIP_PAYLOAD_MAX);
     TinyIp::SetHop(ipp, hops);
+    hex_dmp(ipp, TINYIP_PAYLOAD_MAX);
 
     std::lock_guard<std::mutex> lock(sendmtx);
+    printf("%s\n",TinyIp::print(ipp).c_str());
     sendQueue.push(*ipp);
 }

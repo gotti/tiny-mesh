@@ -2,7 +2,10 @@
 #include <queue>
 #include <vector>
 #include <mutex>
+#include <string>
 
+#define TINYIP_PAYLOAD_MAX 24
+#define TINYUDP_PAYLOAD_MAX 20
 /*
  * Address specification:
  * You can use 5-bits of char from MSB, the remaining 3-bits are reserved for other use, such as hop-by-hop options.
@@ -55,7 +58,7 @@ struct TinyIpPacket{
     Address dst;
     Address hops[4];
     Address src;
-    char payload[24];
+    char payload[TINYIP_PAYLOAD_MAX];
 };
 
 
@@ -65,18 +68,25 @@ namespace TinyIp {
     void SetSrc(TinyIpPacket *p, Address src);
     void SetHop(TinyIpPacket *p, Hops hop);
     void SetPayload(TinyIpPacket *p, char* payload, int length);
+    std::string print(TinyIpPacket *p);
 };
 
 struct TinyUdpFlag {
-    char requestResend:1;
-    char reserved:7;
+    unsigned char requestResend:1;
+    unsigned char reserved:7;
+};
+
+struct TinyUdpPortNumber {
+    unsigned char senderPort:4;
+    unsigned char receiverPort:4;
 };
 
 struct TinyUdpPacket {
     TinyUdpFlag flag;
-    Address seq;
+    TinyUdpPortNumber portNum;
+    unsigned char seq;
     Address chechsum;
-    char payload[20];
+    char payload[TINYUDP_PAYLOAD_MAX];
 };
 
 namespace TinyUdp {
@@ -150,6 +160,7 @@ class TinyConnection{
     std::queue<TinyIpPacket> sendQueue;
     std::queue<TinyIpPacket> recvQueue;
 public:
+    TinyUdpPortNumber portNum;
     Address src;
     Address dst;
     void Send(RoutingTable* routes, char* payload, int length);
@@ -162,6 +173,6 @@ class TinyNet{
     std::vector<TinyConnection*> connections;
 public:
     TinyNet(Address myAddress);
-    RoutingTable* GetRoutes();
-    TinyConnection* InitConnection(Address dst);
+    RoutingTable* GetRoute();
+    TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
 };
