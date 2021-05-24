@@ -2,7 +2,7 @@
 //#include "net.cpp"
 
 int main(){
-    TinyNet *n = new TinyNet(31);
-    Address portNum = n->InitConnection();
-    TinyConnection* con = n->GetConnection(portNum);
+    TinyNet *n = new TinyNet(30);
+    TinyConnection* con = n->InitConnection(29);
+    con->Send();
 }

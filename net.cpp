@@ -46,37 +46,39 @@ RoutingTable::RoutingTable(){
     memset(routes, 0, sizeof(routes));
 }
 
-PortTable::PortTable(){
-    memset(table, 0, sizeof(table));
-}
-
 TinyNet::TinyNet(Address addr){
     myAddress = addr;
     RoutingTable *table = new RoutingTable(); //allocate on heap
     routes = table;
-    PortTable *porttable = new PortTable();
-    portTable = porttable;
 }
 
-Address TinyNet::InitConnection(){
+TinyConnection* TinyNet::InitConnection(Address dst){
     std::lock_guard<std::mutex> lock(mtx_);
     TinyConnection *conn = new TinyConnection{};
     connections.push_back(conn);
-    size_t s = connections.size();
-    return s-1;
+    conn->src = myAddress;
+    conn->dst = dst;
+    return conn;
 };
 
-TinyConnection* TinyNet::GetConnection(Address conNumber){
-    return connections.at(conNumber);
+RoutingTable* TinyNet::GetRoutes(){
+    return routes;
 }
 
-void TinyNet::Send(char* payload, int length){
+void TinyConnection::Send(RoutingTable* routes, char* payload, int length){
     TinyUdpPacket *udpp = new TinyUdpPacket();
-    TinyUdp udpUtil = TinyUdp();
-    udpUtil.SetPayload(udpp, payload, length>20?20:length);
-    udpUtil.SetSeq(udpp, 0);
-    udpUtil.SetFlag(udpp, TinyUdpFlag{});
+    TinyUdp::SetPayload(udpp, payload, length>20?20:length);
+    TinyUdp::SetSeq(udpp, 0);
+    TinyUdp::SetFlag(udpp, TinyUdpFlag{});
+
     TinyIpPacket *ipp = new TinyIpPacket();
-    TinyIp ipUtil = TinyIp();
-    ipUtil.SetSrc(ipp, myAddress);
+    TinyIp::SetSrc(ipp, src);
+    Hops hops = routes->GetRoute(dst, 0);
+    TinyIp::SetDst(ipp, dst);
+    TinyIp::SetFlag(ipp, IpFlag{.nhops = 0, .protocol = 0b011, .autoroute = 0, .unreachable = 0, .echorequest = 0});
+    TinyIp::SetPayload(ipp, (char*)udpp, 24);
+    TinyIp::SetHop(ipp, hops);
+
+    std::lock_guard<std::mutex> lock(sendmtx);
+    sendQueue.push(*ipp);
 }

@@ -13,6 +13,10 @@
 
 typedef unsigned char Address;
 
+struct Hops{
+    Address hop[4];
+};
+
 /*
  * tiny-ip flag specification:
  * nhops is hop count, similar to ttl. tiny-rip supports 4-hops in default. (you can easily extend this limit.)
@@ -55,12 +59,11 @@ struct TinyIpPacket{
 };
 
 
-class TinyIp {
-public:
+namespace TinyIp {
     void SetFlag(TinyIpPacket *p, IpFlag f);
     void SetDst(TinyIpPacket *p, Address dst);
     void SetSrc(TinyIpPacket *p, Address src);
-    void SetHop(TinyIpPacket *p, Address hop[4]);
+    void SetHop(TinyIpPacket *p, Hops hop);
     void SetPayload(TinyIpPacket *p, char* payload, int length);
 };
 
@@ -76,17 +79,13 @@ struct TinyUdpPacket {
     char payload[20];
 };
 
-class TinyUdp {
-public:
+namespace TinyUdp {
     void SetFlag(TinyUdpPacket *p, TinyUdpFlag f);
     void SetSeq(TinyUdpPacket *p, char seq);
     void SetPayload(TinyUdpPacket *p, char* payload, int length);
     void CalcChecksum(TinyUdpPacket *p);
 };
 
-struct Hops{
-    Address hop[4];
-};
 
 struct TinyRipFlag{
     char nhops:2;
@@ -124,7 +123,7 @@ struct TinyRipPacket{
  * If node want to know route of destination address, node can send request packet. If certain node's address matches request packet's dst, the node should send responce packet setting its address to src.
  */
 
-class TinyRip{
+namespace TinyRip{
     void AddMyAddressToAdvertisement(TinyRipPacket *p, Address src);
     void MakeRequest(TinyRipPacket *p);
     bool CheckRequested(TinyRipPacket *p, Address dst);
@@ -146,29 +145,23 @@ public:
 
 
 class TinyConnection{
+    std::mutex sendmtx;
+    std::mutex recvmtx;
     std::queue<TinyIpPacket> sendQueue;
     std::queue<TinyIpPacket> recvQueue;
 public:
-};
-
-class PortTable{
-    Address table[32];
-public:
-    PortTable();
-    void AddRoute(int virtualPort, int address);
-    void DelRoute(int virtualPort);
-    Address GetRoute(int virtualPort);
+    Address src;
+    Address dst;
+    void Send(RoutingTable* routes, char* payload, int length);
 };
 
 class TinyNet{
     std::mutex mtx_;
     Address myAddress;
     RoutingTable *routes;
-    PortTable *portTable;
     std::vector<TinyConnection*> connections;
 public:
     TinyNet(Address myAddress);
-    Address InitConnection();
-    TinyConnection* GetConnection(Address ConNumber);
-    void Send(char* payload, int length);
+    RoutingTable* GetRoutes();
+    TinyConnection* InitConnection(Address dst);
 };
