@@ -147,6 +147,7 @@ class RoutingTable{
     Hops routes[32][3];
 public:
     RoutingTable();
+    void RefreshRoutingTable();
     void AddRoute(Address dst, Address hop[4]);
     Hops GetRoute(Address dst, int index);
     Address GetNextHop(Address dst, int index);
@@ -156,9 +157,9 @@ public:
 
 class TinyConnection{
     std::mutex sendmtx;
-    std::mutex recvmtx;
+    std::mutex usermtx;
     std::queue<TinyIpPacket> sendQueue;
-    std::queue<TinyIpPacket> recvQueue;
+    std::queue<TinyIpPacket> userQueue;
 public:
     TinyUdpPortNumber portNum;
     Address src;
@@ -171,8 +172,11 @@ class TinyNet{
     Address myAddress;
     RoutingTable *routes;
     std::vector<TinyConnection*> connections;
+    std::mutex recvmtx;
+    std::queue<TinyIpPacket> recvQueue;
 public:
     TinyNet(Address myAddress);
     RoutingTable* GetRoute();
     TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
+    void HandleAllPackets(RoutingTable* routes);
 };

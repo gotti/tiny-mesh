@@ -130,3 +130,38 @@ void TinyConnection::Send(RoutingTable* routes, char* payload, int length){
     printf("%s\n",TinyIp::print(ipp).c_str());
     sendQueue.push(*ipp);
 }
+
+//実装考え中
+void TinyNet::HandleAllPackets(RoutingTable* routes){
+    std::lock_guard<std::mutex> lock1(sendmtx);
+    std::lock_guard<std::mutex> lock2(recvmtx);
+    TinyIpPacket ipp = recvQueue.front();
+    recvQueue.pop();
+    // If received packets is for me
+    if (ipp.dst == src) {
+        std::lock_guard<std::mutex> lock(usermtx);
+        userQueue.push(ipp);
+        return;
+    }
+    if (ipp.hops[ipp.flag.nhops]){
+        // destroy a packet for tll
+        if (ipp.flag.nhops == 3){
+            return;
+        }
+        // handle static routing packet
+        if (ipp.flag.autoroute == 0){
+            ipp.flag.nhops++;
+            sendQueue.push(ipp);
+            return;
+        // handle dynamic routing packet
+        } else {
+            ipp.flag.nhops++;
+            ipp.hops[ipp.flag.nhops] = routes->GetNextHop(ipp.dst, 0);
+            sendQueue.push(ipp);
+            return;
+        }
+    }
+}
+
+void RoutingTable::RefreshRoutingTable(){
+}
