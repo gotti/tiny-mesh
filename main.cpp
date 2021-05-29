@@ -1,6 +1,12 @@
 #include "net.hpp"
 //#include "net.cpp"
 
+void sendThread(){
+    while (true){
+
+    }
+}
+
 int main(){
     TinyNet *n = new TinyNet(30);
     TinyUdpPortNumber portNum = TinyUdpPortNumber{0,0};

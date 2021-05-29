@@ -137,6 +137,11 @@ void TinyConnection::AddPacketToQueue(TinyIpPacket p){
     recvQueue.push(p);
 }
 
+TinyIpPacket TinyConnection::getPacketFromQueue(){
+    //途中
+    return recvQueue.front();
+}
+
 //実装考え中
 void TinyNet::HandleAllPackets(RoutingTable* routes){
     std::lock_guard<std::mutex> lock1(sendmtx);
@@ -180,12 +185,16 @@ void TinyNet::HandleAllPackets(RoutingTable* routes){
     }
 }
 
+void TinyNet::movePacketsFromConnectionToCentral(TinyConnection *conn){
+    conn->getPacketFromQueue();
+}
+
 void RoutingTable::RefreshRoutingTable(TinyIpPacket p){
     std::lock_guard<std::mutex> lock(mtx);
     TinyRipPacket ripp = *(TinyRipPacket *)(p.payload);
     for (int i=0; i<4; i++){
         if (routes[p.src][0].hop[i]!=0){
-            memcpy(&(routes[p.src][0].hop),&(ripp.hops),sizeof(Hops));
+            memcpy(routes[p.src][0].hop,&(ripp.hops),sizeof(Hops));
             return;
         }
     }

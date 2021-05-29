@@ -160,13 +160,13 @@ class TinyConnection{
     std::mutex sendmtx;
     std::mutex usermtx;
     std::queue<TinyIpPacket> sendQueue;
-    std::queue<TinyIpPacket> userQueue;
     std::mutex recvmtx;
     std::queue<TinyIpPacket> recvQueue;
 public:
     TinyUdpPortNumber portNum;
     Address src;
     Address dst;
+    TinyIpPacket getPacketFromQueue();
     void Send(RoutingTable* routes, char* payload, int length);
     void AddPacketToQueue(TinyIpPacket p);
 };
@@ -182,6 +182,7 @@ class TinyNet{
     std::queue<TinyIpPacket> recvQueue;
 public:
     bool enabledConnectionNumber[32];
+    void movePacketsFromConnectionToCentral(TinyConnection* conn);
     TinyNet(Address myAddress);
     RoutingTable* GetRoute();
     TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
