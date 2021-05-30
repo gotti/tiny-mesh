@@ -1,32 +1,31 @@
-#pragma once
-#include <queue>
-#include <vector>
 #include <mutex>
+#include <queue>
 #include <string>
+#include <vector>
 
 #define TINYIP_PAYLOAD_MAX 24
 #define TINYUDP_PAYLOAD_MAX 20
 /*
  * Address specification:
- * You can use 5-bits of char from MSB, the remaining 3-bits are reserved for other use, such as hop-by-hop options.
- * 00000 is loopback address.
- * 11111 is broadcast address.
- * others can be used for any purpose.
+ * You can use 5-bits of char from MSB, the remaining 3-bits are reserved for
+ * other use, such as hop-by-hop options. 00000 is loopback address. 11111 is
+ * broadcast address. others can be used for any purpose.
  */
 
 typedef unsigned char Address;
 
-struct Hops{
-    Address hop[4];
+struct Hops {
+  Address hop[4];
 };
 
 /*
  * tiny-ip flag specification:
- * nhops is hop count, similar to ttl. tiny-rip supports 4-hops in default. (you can easily extend this limit.)
- * protocol is next protocol number.
- * when autoroute==1, relay node determine next hop automatically by its routing table, without using TinyIpPacket.hops
- * unreachable is similar to ICMP unreachable. tiny-icmp is not exist, however, this role is embedded in tiny-ip.
- * echorequest is similar to ICMP echo request. (used by ping).
+ * nhops is hop count, similar to ttl. tiny-rip supports 4-hops in default. (you
+ * can easily extend this limit.) protocol is next protocol number. when
+ * autoroute==1, relay node determine next hop automatically by its routing
+ * table, without using TinyIpPacket.hops unreachable is similar to ICMP
+ * unreachable. tiny-icmp is not exist, however, this role is embedded in
+ * tiny-ip. echorequest is similar to ICMP echo request. (used by ping).
  */
 /*
  * protocol number specification in IpFlag
@@ -43,82 +42,82 @@ struct Hops{
 #define PROTOCOL_TINY_UDP 3
 
 struct IpFlag {
-    char nhops:2;
-    char protocol:3;
-    char autoroute:1;
-    char unreachable:1;
-    char echorequest:1;
+  char nhops : 2;
+  char protocol : 3;
+  char autoroute : 1;
+  char unreachable : 1;
+  char echorequest : 1;
 };
 
 /*
  * tiny-ip header specification:
- * hops is used for static routing. When autoroute is set, sender can determine relay node when sending a packet.
- * When autoroute is not set, relay node add "next hop's address" to this section therefore receiver can track packet's route.
+ * hops is used for static routing. When autoroute is set, sender can determine
+ * relay node when sending a packet. When autoroute is not set, relay node add
+ * "next hop's address" to this section therefore receiver can track packet's
+ * route.
  */
 
-struct TinyIpPacket{
-    IpFlag flag;
-    Address dst;
-    Address hops[4];
-    Address src;
-    char payload[TINYIP_PAYLOAD_MAX];
+struct TinyIpPacket {
+  IpFlag flag;
+  Address dst;
+  Address hops[4];
+  Address src;
+  char payload[TINYIP_PAYLOAD_MAX];
 };
-
 
 namespace TinyIp {
-    void SetFlag(TinyIpPacket *p, IpFlag f);
-    void SetDst(TinyIpPacket *p, Address dst);
-    void SetSrc(TinyIpPacket *p, Address src);
-    void SetHop(TinyIpPacket *p, Hops hop);
-    void SetPayload(TinyIpPacket *p, char* payload, int length);
-    void hex_dmp(TinyIpPacket *p);
-};
+void SetFlag(TinyIpPacket *p, IpFlag f);
+void SetDst(TinyIpPacket *p, Address dst);
+void SetSrc(TinyIpPacket *p, Address src);
+void SetHop(TinyIpPacket *p, Hops hop);
+void SetPayload(TinyIpPacket *p, char *payload, int length);
+void hex_dmp(TinyIpPacket *p);
+}; // namespace TinyIp
 
 struct TinyUdpFlag {
-    unsigned char requestResend:1;
-    unsigned char reserved:7;
+  unsigned char requestResend : 1;
+  unsigned char reserved : 7;
 };
 
 struct TinyUdpPortNumber {
-    unsigned char srcPort:4;
-    unsigned char dstPort:4;
+  unsigned char srcPort : 4;
+  unsigned char dstPort : 4;
 };
 
 struct TinyUdpPacket {
-    TinyUdpFlag flag;
-    TinyUdpPortNumber portNum;
-    unsigned char seq;
-    Address chechsum;
-    char payload[TINYUDP_PAYLOAD_MAX];
+  TinyUdpFlag flag;
+  TinyUdpPortNumber portNum;
+  unsigned char seq;
+  Address chechsum;
+  char payload[TINYUDP_PAYLOAD_MAX];
 };
 
 namespace TinyUdp {
-    void SetFlag(TinyUdpPacket *p, TinyUdpFlag f);
-    void SetSeq(TinyUdpPacket *p, char seq);
-    void SetPayload(TinyUdpPacket *p, char* payload, int length);
-    void CalcChecksum(TinyUdpPacket *p);
+void SetFlag(TinyUdpPacket *p, TinyUdpFlag f);
+void SetSeq(TinyUdpPacket *p, char seq);
+void SetPayload(TinyUdpPacket *p, char *payload, int length);
+void CalcChecksum(TinyUdpPacket *p);
+}; // namespace TinyUdp
+
+struct TinyRipFlag {
+  char nhops : 2;
+  char advertise : 1;
+  char request : 1;
+  char responce : 1;
+  char reserved : 3;
 };
 
-
-struct TinyRipFlag{
-    char nhops:2;
-    char advertise:1;
-    char request:1;
-    char responce:1;
-    char reserved:3;
-};
-
-struct TinyRipPacket{
-    TinyRipFlag flag;
-    Hops hops;
+struct TinyRipPacket {
+  TinyRipFlag flag;
+  Hops hops;
 };
 
 /*
  * tiny-rip protocol specification:
- * tiny-rip generally receive and send broadcast packet. For avoiding packet loop, incrementing nhops and adding all relay nodes' address to hops are needed
- * tiny-rip is to determine routes. In tiny-rip, node have a routing table, which contains list of nodes.
- * Example:
- *   A-B-C-D
+ * tiny-rip generally receive and send broadcast packet. For avoiding packet
+ * loop, incrementing nhops and adding all relay nodes' address to hops are
+ * needed tiny-rip is to determine routes. In tiny-rip, node have a routing
+ * table, which contains list of nodes. Example: A-B-C-D
  *   \___/
  *
  *   In this example, D can send a packet in 2 routes. D→C→B→A or D→C→A.
@@ -127,72 +126,83 @@ struct TinyRipPacket{
  *   RoutingTable.Address[A][1]={C,B,0,0}
  *   0 normally means broadcast, however in tiny-rip, 0 means no host.
  *   RoutingTable.Address[A] should be sorted by length(hops), shortest first.
- *   Since tiny-rip supports static routing by setting relay nodes' address when sending a packet, sender can determine which relay to use.
- *   If unreachable packet is received, node should destroy all routes for that address and resend in dynamic routing, or relay unreachable packet to receiver in static routing.
+ *   Since tiny-rip supports static routing by setting relay nodes' address when
+ * sending a packet, sender can determine which relay to use. If unreachable
+ * packet is received, node should destroy all routes for that address and
+ * resend in dynamic routing, or relay unreachable packet to receiver in static
+ * routing.
  *
  * packets for creating routing table
  * All nodes should advertise at regular intervals.
- * All nodes receiving advertisement add next hop's address to hops, re-advertise, and add route to routing table, unless hops already has their own address or nhops==4.
- * If node want to know route of destination address, node can send request packet. If certain node's address matches request packet's dst, the node should send responce packet setting its address to src.
+ * All nodes receiving advertisement add next hop's address to hops,
+ * re-advertise, and add route to routing table, unless hops already has their
+ * own address or nhops==4. If node want to know route of destination address,
+ * node can send request packet. If certain node's address matches request
+ * packet's dst, the node should send responce packet setting its address to
+ * src.
  */
 
-namespace TinyRip{
-    void AddMyAddressToAdvertisement(TinyRipPacket *p, Address src);
-    void MakeRequest(TinyRipPacket *p);
-    bool CheckRequested(TinyRipPacket *p, Address dst);
-};
+namespace TinyRip {
+void AddMyAddressToAdvertisement(TinyRipPacket *p, Address src);
+void MakeRequest(TinyRipPacket *p);
+bool CheckRequested(TinyRipPacket *p, Address dst);
+}; // namespace TinyRip
 
-struct Routes{
-    Hops hop;
+struct Routes {
+  Hops hop;
 };
-class RoutingTable{
-    std::mutex mtx;
-    Hops routes[32][3];
+class RoutingTable {
+  std::mutex mtx;
+  Hops routes[32][3];
+
 public:
-    RoutingTable();
-    void RefreshRoutingTable(TinyIpPacket p);
-    void dumpRoutingTable();
-    void AddRoute(Address dst, Address hop[4]);
-    Hops GetRoute(Address dst, int index);
-    Address GetNextHop(Address dst, int index, unsigned char nhops);
-    void DelRoute(Address dst, int index);
+  RoutingTable();
+  void RefreshRoutingTable(TinyIpPacket p);
+  void dumpRoutingTable();
+  void AddRoute(Address dst, Address hop[4]);
+  Hops GetRoute(Address dst, int index);
+  Address GetNextHop(Address dst, int index, unsigned char nhops);
+  void DelRoute(Address dst, int index);
 };
 
+class TinyConnection {
+  std::mutex sendmtx;
+  std::mutex usermtx;
+  std::queue<TinyIpPacket> sendQueue;
+  std::mutex recvmtx;
+  std::queue<TinyIpPacket> recvQueue;
 
-class TinyConnection{
-    std::mutex sendmtx;
-    std::mutex usermtx;
-    std::queue<TinyIpPacket> sendQueue;
-    std::mutex recvmtx;
-    std::queue<TinyIpPacket> recvQueue;
 public:
-    TinyUdpPortNumber portNum;
-    Address src;
-    Address dst;
-    TinyIpPacket getPacketFromReceivedQueue();
-    TinyUdpPacket getTinyUdpPacket();
-    TinyIpPacket getPacketFromSendingQueue();
-    void Send(RoutingTable* routes, char* payload, int length);
-    void AddPacketToQueue(TinyIpPacket p);
+  TinyUdpPortNumber portNum;
+  Address src;
+  Address dst;
+  bool canLoad();
+  TinyIpPacket getPacketFromReceivedQueue();
+  TinyUdpPacket getTinyUdpPacket();
+  TinyIpPacket getPacketFromSendingQueue();
+  void Send(RoutingTable *routes, char *payload, int length);
+  void AddPacketToQueue(TinyIpPacket p);
 };
 
-class TinyNet{
-    std::mutex mtx_;
-    Address myAddress;
-    RoutingTable *routes;
-    std::vector<TinyConnection*> connections;
-    std::mutex sendmtx;
-    std::queue<TinyIpPacket> sendQueue;
-    std::mutex recvmtx;
-    std::queue<TinyIpPacket> recvQueue;
+class TinyNet {
+  std::mutex mtx_;
+  Address myAddress;
+  RoutingTable *routes;
+  std::vector<TinyConnection *> connections;
+  std::mutex sendmtx;
+  std::queue<TinyIpPacket> sendQueue;
+  std::mutex recvmtx;
+  std::queue<TinyIpPacket> recvQueue;
+
 public:
-    bool enabledConnectionNumber[32];
-    void movePacketsFromConnectionToCentral(TinyConnection* conn);
-    TinyIpPacket getPacketFromCentralSendingQueue();
-    void addPacketToCentralReceivingQueue(TinyIpPacket p);
-    TinyNet(Address myAddress);
-    RoutingTable* GetRoute();
-    TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
-    void handleAllSendingPackets(RoutingTable* routes);
-    void handleAllReceivedPackets(RoutingTable* routes);
+  bool canLoad();
+  bool enabledConnectionNumber[32];
+  void movePacketsFromConnectionToCentral(TinyConnection *conn);
+  TinyIpPacket getPacketFromCentralSendingQueue();
+  void addPacketToCentralReceivingQueue(TinyIpPacket p);
+  TinyNet(Address myAddress);
+  RoutingTable *GetRoute();
+  TinyConnection *InitConnection(TinyUdpPortNumber portNum, Address dst);
+  void handleAllSendingPackets(RoutingTable *routes);
+  void handleAllReceivedPackets(RoutingTable *routes);
 };
