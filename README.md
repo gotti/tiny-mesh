@@ -3,17 +3,25 @@
 The object types in this library shown below.
 
 - TinyNet
+
 Similar to network interface. It has one IP address and contains all connections using this address. In addition to this, for hopping, it has a routing table refreshed automatically by received RIP packet.
+
 - TinyConnection
+
 Similar to socket in TCP socket communication. It have a port number and TinyNet move packet from its central queue where all packets are stored firstly, to the queue of connection using its port number.
 
 You must create 3 threads for sending, receiving and handling packets.
 
 - sending thread
+
 This thread move packets from central sending queue which TinyNet has to next hop via something to transfer, such as BLE.
+
 - receiving thread
+
 This thread move packets from something to transfer to central received queue which TinyNet has.
+
 - handling thread
+
 This thread move packets from central received queue to received queue per connections.
 
 # How to send packets to remote host
@@ -41,6 +49,7 @@ con->Send(n->GetRoute(), data, TINYUDP_PAYLOAD_MAX);
 ```
 
 Push a packet to central sending queue from connection queue and send a packet stored in central sending queue via BLE.
+
 Note: This can be divided to sending thread.
 
 ```c
@@ -49,6 +58,7 @@ BLESend(getPacketFromCentralSendingQueue());
 ```
 
 Receive a packet from BLE.
+
 Note: this can be divided to receiving thread.
 
 ```c
