@@ -26,13 +26,13 @@ This thread move packets from central received queue to received queue per conne
 
 # How to send packets to remote host
 
-First, create network, handling all received packets, connections, routing table.
+First, create network, handling all received packets, connections and routing table.
 
 ```c
 TinyNet *n = new TinyNet(/*IP Address of this machine*/);
 ```
 
-Next, create a UDP connection. This layer cover packet size and division.
+Next, create a UDP connection. This layer covers packet size and division.
 
 ```c
 TinyUdpPortNumber portNum = TinyUdpPortNumber{/*src port number*/,/*dst port number*/};
