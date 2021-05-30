@@ -80,8 +80,8 @@ struct TinyUdpFlag {
 };
 
 struct TinyUdpPortNumber {
-    unsigned char senderPort:4;
-    unsigned char receiverPort:4;
+    unsigned char srcPort:4;
+    unsigned char dstPort:4;
 };
 
 struct TinyUdpPacket {
@@ -170,6 +170,7 @@ public:
     Address src;
     Address dst;
     TinyIpPacket getPacketFromReceivedQueue();
+    TinyUdpPacket getTinyUdpPacket();
     TinyIpPacket getPacketFromSendingQueue();
     void Send(RoutingTable* routes, char* payload, int length);
     void AddPacketToQueue(TinyIpPacket p);
@@ -192,6 +193,6 @@ public:
     TinyNet(Address myAddress);
     RoutingTable* GetRoute();
     TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
-    void HandleAllSendingPackets(RoutingTable* routes);
-    void HandleAllReceivedPackets(RoutingTable* routes);
+    void handleAllSendingPackets(RoutingTable* routes);
+    void handleAllReceivedPackets(RoutingTable* routes);
 };

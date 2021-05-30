@@ -53,7 +53,7 @@ Push a packet to central sending queue from connection queue and send a packet s
 Note: This can be divided to sending thread.
 
 ```c
-n->HandleAllSendingPackets(routes);
+n->handleAllSendingPackets(routes);
 BLESend(getPacketFromCentralSendingQueue());
 ```
 
@@ -69,7 +69,7 @@ n.addPacketToCentralReceivingQueue(p);
 Handle all packet, moving from central receiving queue to queue of connection.
 
 ```c
-n->HandleAllReceivedPackets(routes);
+n->handleAllReceivedPackets(routes);
 ```
 
 After these steps, you can receive packets from connection.
