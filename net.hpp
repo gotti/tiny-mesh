@@ -39,6 +39,9 @@ struct Hops{
  * role of icmp is embedded in tiny-ip flag.
  */
 
+#define PROTOCOL_TINY_RIP 2
+#define PROTOCOL_TINY_UDP 3
+
 struct IpFlag {
     char nhops:2;
     char protocol:3;
@@ -149,9 +152,10 @@ class RoutingTable{
 public:
     RoutingTable();
     void RefreshRoutingTable(TinyIpPacket p);
+    void dumpRoutingTable();
     void AddRoute(Address dst, Address hop[4]);
     Hops GetRoute(Address dst, int index);
-    Address GetNextHop(Address dst, int index);
+    Address GetNextHop(Address dst, int index, unsigned char nhops);
     void DelRoute(Address dst, int index);
 };
 
@@ -183,6 +187,7 @@ class TinyNet{
 public:
     bool enabledConnectionNumber[32];
     void movePacketsFromConnectionToCentral(TinyConnection* conn);
+    void movePacketToQueue(TinyIpPacket p);
     TinyNet(Address myAddress);
     RoutingTable* GetRoute();
     TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
