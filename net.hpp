@@ -71,7 +71,7 @@ namespace TinyIp {
     void SetSrc(TinyIpPacket *p, Address src);
     void SetHop(TinyIpPacket *p, Hops hop);
     void SetPayload(TinyIpPacket *p, char* payload, int length);
-    std::string print(TinyIpPacket *p);
+    void hex_dmp(TinyIpPacket *p);
 };
 
 struct TinyUdpFlag {
@@ -145,7 +145,6 @@ namespace TinyRip{
 struct Routes{
     Hops hop;
 };
-
 class RoutingTable{
     std::mutex mtx;
     Hops routes[32][3];
@@ -170,7 +169,8 @@ public:
     TinyUdpPortNumber portNum;
     Address src;
     Address dst;
-    TinyIpPacket getPacketFromQueue();
+    TinyIpPacket getPacketFromReceivedQueue();
+    TinyIpPacket getPacketFromSendingQueue();
     void Send(RoutingTable* routes, char* payload, int length);
     void AddPacketToQueue(TinyIpPacket p);
 };
@@ -187,9 +187,11 @@ class TinyNet{
 public:
     bool enabledConnectionNumber[32];
     void movePacketsFromConnectionToCentral(TinyConnection* conn);
-    void movePacketToQueue(TinyIpPacket p);
+    TinyIpPacket getPacketFromCentralSendingQueue();
+    void addPacketToCentralReceivingQueue(TinyIpPacket p);
     TinyNet(Address myAddress);
     RoutingTable* GetRoute();
     TinyConnection* InitConnection(TinyUdpPortNumber portNum, Address dst);
-    void HandleAllPackets(RoutingTable* routes);
+    void HandleAllSendingPackets(RoutingTable* routes);
+    void HandleAllReceivedPackets(RoutingTable* routes);
 };
