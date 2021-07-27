@@ -165,12 +165,17 @@ void TinyConnection::Send(RoutingTable *routes, char *payload, int length) {
   std::lock_guard<std::mutex> lock(sendmtx);
   //TODO: isolate udp from ip
   hex_dmp(ipp, TINYIP_PAYLOAD_MAX);
-  AddPacketToQueue(*ipp);
+  AddPacketToSendQueue(*ipp);
 }
 
-void TinyConnection::AddPacketToQueue(TinyIpPacket p) {
+void TinyConnection::AddPacketToSendQueue(TinyIpPacket p) {
   std::lock_guard<std::mutex> lock(sendmtx);
   sendQueue.push(p);
+}
+
+void TinyConnection::AddPacketToRecvQueue(TinyIpPacket p) {
+  std::lock_guard<std::mutex> lock(recvmtx);
+  recvQueue.push(p);
 }
 
 bool TinyConnection::canLoad() { return recvQueue.size() > 0; }
@@ -228,8 +233,8 @@ void TinyNet::handleAllReceivedPackets(RoutingTable *routes) {
     case PROTOCOL_TINY_UDP:
       TinyUdpPacket p = *(TinyUdpPacket *)(ipp.payload);
       if (enabledConnectionNumber[p.portNum.dstPort > 31 ? 31
-                                                         : p.portNum.srcPort]) {
-        connections.at(p.portNum.srcPort)->AddPacketToQueue(ipp);
+                                                         : p.portNum.dstPort]) {
+        connections.at(p.portNum.dstPort)->AddPacketToRecvQueue(ipp);
       }
       return;
     }

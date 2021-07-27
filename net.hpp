@@ -183,7 +183,8 @@ public:
   TinyUdpPacket getTinyUdpPacket();
   TinyIpPacket getPacketFromSendingQueue();
   void Send(RoutingTable *routes, char *payload, int length);
-  void AddPacketToQueue(TinyIpPacket p);
+  void AddPacketToSendQueue(TinyIpPacket p);
+  void AddPacketToRecvQueue(TinyIpPacket p);
 };
 
 class TinyUdpConnection{
