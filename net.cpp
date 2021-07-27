@@ -1,8 +1,38 @@
 #include "net.hpp"
+#include <cstdio>
 #include <mutex>
 #include <string.h>
 #include <string>
 
+// from https://qiita.com/tk23ohtani/items/4d344db7375c8d96472b
+void hex_dmp(const void *buf, int size) {
+  int i, j;
+  unsigned char *p = (unsigned char *)buf, tmp[20];
+
+  printf("+0 +1 +2 +3 +4 +5 +6 +7 +8 +9 +A +B +C +D +E +F|  -- ASCII --\r\n");
+  printf(
+      "--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+----------------\r\n");
+  for (i = 0; p - (unsigned char *)buf < size; i++) {
+    for (j = 0; j < 16; j++) {
+      tmp[j] = (unsigned char)((*p < 0x20 || *p >= 0x7f) ? '.' : *p);
+      printf("%02X ", (int)*p);
+      if (++p - (unsigned char *)buf >= size) {
+        tmp[++j] = '\0';
+        for (; j < 16; j++) {
+          printf("   ");
+        }
+        break;
+      }
+    }
+    tmp[16] = '\0';
+    printf("%s\r\n", tmp);
+    if (p - (unsigned char *)buf >= size) {
+      break;
+    }
+  }
+}
+
+void TinyIp::hex_dmp(TinyIpPacket *p) { hex_dmp(p, sizeof(TinyIpPacket)); }
 void TinyIp::SetFlag(TinyIpPacket *p, IpFlag f) {
   p->flag = f; //?
 }
@@ -78,6 +108,7 @@ TinyIpPacket TinyNet::getPacketFromCentralSendingQueue() {
   std::lock_guard<std::mutex> lock(sendmtx);
   TinyIpPacket p = sendQueue.front();
   sendQueue.pop();
+  hex_dmp(&p,30);
   return p;
 }
 
@@ -95,41 +126,28 @@ TinyConnection *TinyNet::InitConnection(TinyUdpPortNumber portNum,
 
 RoutingTable *TinyNet::GetRoute() { return routes; }
 
-// from https://qiita.com/tk23ohtani/items/4d344db7375c8d96472b
-void hex_dmp(const void *buf, int size) {
-  int i, j;
-  unsigned char *p = (unsigned char *)buf, tmp[20];
 
-  printf("+0 +1 +2 +3 +4 +5 +6 +7 +8 +9 +A +B +C +D +E +F|  -- ASCII --\r\n");
-  printf(
-      "--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+----------------\r\n");
-  for (i = 0; p - (unsigned char *)buf < size; i++) {
-    for (j = 0; j < 16; j++) {
-      tmp[j] = (unsigned char)((*p < 0x20 || *p >= 0x7f) ? '.' : *p);
-      printf("%02X ", (int)*p);
-      if (++p - (unsigned char *)buf >= size) {
-        tmp[++j] = '\0';
-        for (; j < 16; j++) {
-          printf("   ");
-        }
-        break;
-      }
+void TinyUdpConnection::Send(TinyConnection *con, char *payload, int length){
+  int sent = 0;
+  for (int i = 0; ; i++) {
+    TinyUdpPacket *udpp = new TinyUdpPacket();
+    // last one packet
+    if (TINYUDP_PAYLOAD_MAX+sent > length){
+      TinyUdp::SetPayload(udpp, payload, length-sent);
+      return;
     }
-    tmp[16] = '\0';
-    printf("%s\r\n", tmp);
-    if (p - (unsigned char *)buf >= size) {
-      break;
-    }
+    TinyUdp::SetPayload(udpp, payload, TINYUDP_PAYLOAD_MAX);
+    sent += TINYUDP_PAYLOAD_MAX;
+    TinyUdp::SetSeq(udpp, char(i));
+    TinyUdp::SetFlag(udpp, TinyUdpFlag{});
   }
 }
-
-void TinyIp::hex_dmp(TinyIpPacket *p) { hex_dmp(p, sizeof(TinyIpPacket)); }
 
 void TinyConnection::Send(RoutingTable *routes, char *payload, int length) {
   printf("sending: %s\n", payload);
   TinyUdpPacket *udpp = new TinyUdpPacket();
   TinyUdp::SetPayload(udpp, payload, length);
-  TinyUdp::SetSeq(udpp, 0);
+  TinyUdp::SetSeq(udpp, seq++);
   TinyUdp::SetFlag(udpp, TinyUdpFlag{});
 
   TinyIpPacket *ipp = new TinyIpPacket();
@@ -141,16 +159,18 @@ void TinyConnection::Send(RoutingTable *routes, char *payload, int length) {
                               .autoroute = 0,
                               .unreachable = 0,
                               .echorequest = 0});
-  TinyIp::SetPayload(ipp, (char *)udpp, TINYIP_PAYLOAD_MAX);
+  TinyIp::SetPayload(ipp, (char *)udpp, length);
   TinyIp::SetHop(ipp, hops);
 
   std::lock_guard<std::mutex> lock(sendmtx);
-  sendQueue.push(*ipp);
+  //TODO: isolate udp from ip
+  hex_dmp(ipp, TINYIP_PAYLOAD_MAX);
+  AddPacketToQueue(*ipp);
 }
 
 void TinyConnection::AddPacketToQueue(TinyIpPacket p) {
-  std::lock_guard<std::mutex> lock(recvmtx);
-  recvQueue.push(p);
+  std::lock_guard<std::mutex> lock(sendmtx);
+  sendQueue.push(p);
 }
 
 bool TinyConnection::canLoad() { return recvQueue.size() > 0; }
@@ -159,15 +179,13 @@ bool TinyNet::canLoad() { return recvQueue.size() > 0; }
 
 TinyIpPacket TinyConnection::getPacketFromReceivedQueue() {
   //途中
-  std::lock_guard<std::mutex> lock1(recvmtx);
-  TinyIpPacket p = recvQueue.front();
-  recvQueue.pop();
-  return p;
 }
 TinyUdpPacket TinyConnection::getTinyUdpPacket() {
-  TinyIpPacket p = getPacketFromReceivedQueue();
-  TinyUdpPacket *udpp = (TinyUdpPacket *)(p.payload);
-  return *udpp;
+  std::lock_guard<std::mutex> lock1(recvmtx);
+  TinyIpPacket p = recvQueue.front();
+  TinyUdpPacket udpp = *(TinyUdpPacket *)(p.payload);
+  recvQueue.pop();
+  return udpp;
 }
 
 TinyIpPacket TinyConnection::getPacketFromSendingQueue() {
@@ -199,6 +217,7 @@ void TinyNet::handleAllReceivedPackets(RoutingTable *routes) {
   TinyIpPacket ipp = recvQueue.front();
   recvQueue.pop();
   // If received packets is for me
+  hex_dmp(&ipp, 30);
   printf("handling protocol:%d\n", ipp.flag.protocol);
   if (ipp.dst == myAddress) {
     switch (ipp.flag.protocol) {

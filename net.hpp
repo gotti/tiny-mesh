@@ -165,6 +165,7 @@ public:
   void DelRoute(Address dst, int index);
 };
 
+
 class TinyConnection {
   std::mutex sendmtx;
   std::mutex usermtx;
@@ -174,6 +175,7 @@ class TinyConnection {
 
 public:
   TinyUdpPortNumber portNum;
+  uint seq;
   Address src;
   Address dst;
   bool canLoad();
@@ -182,6 +184,14 @@ public:
   TinyIpPacket getPacketFromSendingQueue();
   void Send(RoutingTable *routes, char *payload, int length);
   void AddPacketToQueue(TinyIpPacket p);
+};
+
+class TinyUdpConnection{
+  uint seq;
+  char* payload;
+  int length;
+  public:
+    void Send(TinyConnection* con, char* payload, int length);
 };
 
 class TinyNet {
