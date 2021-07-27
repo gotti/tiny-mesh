@@ -96,7 +96,7 @@ namespace TinyUdp {
 void SetFlag(TinyUdpPacket *p, TinyUdpFlag f);
 void SetSeq(TinyUdpPacket *p, char seq);
 void SetPayload(TinyUdpPacket *p, char *payload, int length);
-void CalcChecksum(TinyUdpPacket *p);
+char CalcChecksum(TinyUdpPacket *p);
 }; // namespace TinyUdp
 
 struct TinyRipFlag {
@@ -216,4 +216,5 @@ public:
   TinyConnection *InitConnection(TinyUdpPortNumber portNum, Address dst);
   void handleAllSendingPackets(RoutingTable *routes);
   void handleAllReceivedPackets(RoutingTable *routes);
+  TinyIpPacket CreateRequestRetryPacket(TinyIpPacket p);
 };

@@ -49,7 +49,7 @@ void TinyIp::SetPayload(TinyIpPacket *p, char *payload, int length) {
 
 void TinyUdp::SetFlag(TinyUdpPacket *p, TinyUdpFlag f) { p->flag = f; }
 void TinyUdp::SetSeq(TinyUdpPacket *p, char seq) { p->seq = seq; }
-void TinyUdp::CalcChecksum(TinyUdpPacket *p) {
+char TinyUdp::CalcChecksum(TinyUdpPacket *p) {
   p->chechsum = 0;
   char sum = 0;
   char *c = (char *)(p);
@@ -57,7 +57,7 @@ void TinyUdp::CalcChecksum(TinyUdpPacket *p) {
     sum += *c;
   }
   sum = ~sum;
-  p->chechsum = sum;
+  return sum;
 }
 void TinyUdp::SetPayload(TinyUdpPacket *p, char *payload, int length) {
   memset(p->payload, 0, TINYUDP_PAYLOAD_MAX);
@@ -149,6 +149,7 @@ void TinyConnection::Send(RoutingTable *routes, char *payload, int length) {
   TinyUdp::SetPayload(udpp, payload, length);
   TinyUdp::SetSeq(udpp, seq++);
   TinyUdp::SetFlag(udpp, TinyUdpFlag{});
+  udpp->chechsum = TinyUdp::CalcChecksum(udpp);
 
   TinyIpPacket *ipp = new TinyIpPacket();
   TinyIp::SetSrc(ipp, src);
@@ -179,6 +180,26 @@ void TinyConnection::AddPacketToRecvQueue(TinyIpPacket p) {
 }
 
 bool TinyConnection::canLoad() { return recvQueue.size() > 0; }
+
+TinyIpPacket TinyNet::CreateRequestRetryPacket(TinyIpPacket p){
+  // handle static routing packet
+  TinyUdpPacket udpp = *(TinyUdpPacket *)p.payload;
+  TinyIpPacket rrp = TinyIpPacket();
+  rrp.src = p.dst;
+  rrp.dst = p.src;
+  if (p.flag.autoroute == 0) {
+    udpp.flag.requestResend = 1;
+    memcpy(&(rrp.payload), &udpp, TINYUDP_PAYLOAD_MAX);
+    char temp[4];
+    for (int i=0; i<4; i++){
+      temp[i] = p.hops[i];
+    }
+    for (int i=0; i<4; i++){
+      rrp.hops[3-i] = temp[i];
+    }
+  }
+  return rrp;
+}
 
 bool TinyNet::canLoad() { return recvQueue.size() > 0; }
 
@@ -212,6 +233,7 @@ void TinyNet::handleAllSendingPackets(RoutingTable *routes) {
   }
 }
 
+
 void TinyNet::handleAllReceivedPackets(RoutingTable *routes) {
   printf("packets in queue: %ld\n", recvQueue.size());
   if (recvQueue.size() <= 0) {
@@ -232,6 +254,11 @@ void TinyNet::handleAllReceivedPackets(RoutingTable *routes) {
       return;
     case PROTOCOL_TINY_UDP:
       TinyUdpPacket p = *(TinyUdpPacket *)(ipp.payload);
+      //checksum should be -1 (8b11111111)
+      if (TinyUdp::CalcChecksum(&p) != -1){
+        std::lock_guard<std::mutex> lock(sendmtx);
+        sendQueue.push(CreateRequestRetryPacket(ipp));
+      }
       if (enabledConnectionNumber[p.portNum.dstPort > 31 ? 31
                                                          : p.portNum.dstPort]) {
         connections.at(p.portNum.dstPort)->AddPacketToRecvQueue(ipp);
