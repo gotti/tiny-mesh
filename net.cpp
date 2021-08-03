@@ -130,38 +130,36 @@ RoutingTable *TinyNet::GetRoute() { return routes; }
 void TinyUdpConnection::Send(TinyConnection *con, char *payload, int length){
   int sent = 0;
   for (int i = 0; ; i++) {
-    TinyUdpPacket *udpp = new TinyUdpPacket();
+    TinyUdpPacket udpp = TinyUdpPacket();
     // last one packet
     if (TINYUDP_PAYLOAD_MAX+sent > length){
-      TinyUdp::SetPayload(udpp, payload, length-sent);
+      TinyUdp::SetPayload(&udpp, payload, length-sent);
       return;
     }
-    TinyUdp::SetPayload(udpp, payload, TINYUDP_PAYLOAD_MAX);
+    TinyUdp::SetPayload(&udpp, payload, TINYUDP_PAYLOAD_MAX);
     sent += TINYUDP_PAYLOAD_MAX;
-    TinyUdp::SetSeq(udpp, char(i));
-    TinyUdp::SetFlag(udpp, TinyUdpFlag{});
+    TinyUdp::SetSeq(&udpp, char(i));
+    TinyUdp::SetFlag(&udpp, TinyUdpFlag{});
+    con->Send(udpp);
   }
 }
 
-void TinyConnection::Send(RoutingTable *routes, char *payload, int length) {
-  printf("sending: %s\n", payload);
-  TinyUdpPacket *udpp = new TinyUdpPacket();
-  TinyUdp::SetPayload(udpp, payload, length);
-  TinyUdp::SetSeq(udpp, seq++);
-  TinyUdp::SetFlag(udpp, TinyUdpFlag{});
-  udpp->chechsum = TinyUdp::CalcChecksum(udpp);
+void TinyConnection::Send(TinyUdpPacket udpp){
+  TinyUdpPacket p = TinyUdpPacket{};
+  memcpy(&p, &udpp, sizeof(TinyUdpPacket));
+  TinyUdp::SetSeq(&p, seq++);
+  TinyUdp::SetFlag(&p, TinyUdpFlag{});
+  udpp.chechsum = TinyUdp::CalcChecksum(&p);
 
   TinyIpPacket *ipp = new TinyIpPacket();
   TinyIp::SetSrc(ipp, src);
-  Hops hops = routes->GetRoute(dst, 0);
   TinyIp::SetDst(ipp, dst);
   TinyIp::SetFlag(ipp, IpFlag{.nhops = 0,
                               .protocol = 0b011,
-                              .autoroute = 0,
+                              .autoroute = 1,
                               .unreachable = 0,
                               .echorequest = 0});
-  TinyIp::SetPayload(ipp, (char *)udpp, length);
-  TinyIp::SetHop(ipp, hops);
+  TinyIp::SetPayload(ipp, (char *)&udpp, TINYIP_PAYLOAD_MAX);
 
   std::lock_guard<std::mutex> lock(sendmtx);
   //TODO: isolate udp from ip

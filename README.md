@@ -24,6 +24,22 @@ This thread move packets from something to transfer to central received queue wh
 
 This thread move packets from central received queue to received queue per connections.
 
+# Internal Architecture
+
+Tiny mesh has 2 incoming queue and 2 outgoing queue internally.
+
+One queue is in TinyConnection. When string data is sent to someone, packet created from string data moves to in queue of TinyConnection.
+
+When TinyNet::handleAllSendingPackets is called, packets in the queue move to queue of TinyNet.
+
+User can pop packets from queue of TinyNet and send by something such as bluetooth.
+
+When you receive packets, you can push to incoming queue of TinyNet.
+
+When TinyNet::handleAllReceivedPackets is called, packets in queue of TinyNet classified by port number and protocol number.
+
+Tiny RIP packets are handled in protocol stack. Tiny UDP packets will send to appropriate connections.
+
 # How to send packets to remote host
 
 First, create network, handling all received packets, connections and routing table.
@@ -77,3 +93,5 @@ After these steps, you can receive packets from connection.
 ```c
 TinyIpPacket p = con->getPacketFromReceivedQueue();
 ```
+
+

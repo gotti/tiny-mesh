@@ -182,7 +182,7 @@ public:
   TinyIpPacket getPacketFromReceivedQueue();
   TinyUdpPacket getTinyUdpPacket();
   TinyIpPacket getPacketFromSendingQueue();
-  void Send(RoutingTable *routes, char *payload, int length);
+  void Send(TinyUdpPacket udpp);
   void AddPacketToSendQueue(TinyIpPacket p);
   void AddPacketToRecvQueue(TinyIpPacket p);
 };
