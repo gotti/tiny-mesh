@@ -1,6 +1,18 @@
-# CMakeのバージョンを設定
-cmake_minimum_required(VERSION 3.21)
-# プロジェクト名と使用する言語を設定
+cmake_minimum_required(VERSION 3.2)
 project(tiny-mesh CXX)
-# a.outという実行ファイルをmain.cppとhello.cppから作成
-add_executable(a.out main_test.cpp net.cpp net.hpp)
+
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wextra -pedantic -Wcast-align -Wcast-qual -Wconversion -Wdisabled-optimization -Wendif-labels -Wfloat-equal -Winit-self -Winline -Wmissing-include-dirs -Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual -Wpacked -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-promo -Wswitch-default -Wswitch-enum -Wvariadic-macros -Wwrite-strings ")
+set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 -pg")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -s -DNDEBUG -march=native")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g3 -Og -pg")
+set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -s -DNDEBUG -march=native")
+
+add_executable(main main_test.cpp)
+target_link_libraries(main lib)
+
+if(NOT without-test)
+    enable_testing()
+    include(cmake/gtest.cmake)
+    add_subdirectory(test)
+endif()
