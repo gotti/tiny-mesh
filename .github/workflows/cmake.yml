@@ -8,7 +8,7 @@ on:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
+  BUILD_TYPE: Debug
 
 jobs:
   build:
@@ -27,3 +27,5 @@ jobs:
     - name: Build
       # Build your program with the given configuration
       run: make
+    - name: Test
+      run: ./a.out
