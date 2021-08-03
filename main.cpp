@@ -44,7 +44,7 @@ int main() {
 
   // create udp packet and send message
   char data[TINYUDP_PAYLOAD_MAX] = "aiueo";
-  con->Send(n->GetRoute(), data, TINYUDP_PAYLOAD_MAX);
+  TinyUdpConnection::Send(con, data, sizeof(data));
   sendThread(n, n->GetRoute());
   handleThread(n, n->GetRoute());
 

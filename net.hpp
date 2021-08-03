@@ -192,7 +192,7 @@ class TinyUdpConnection{
   char* payload;
   int length;
   public:
-    void Send(TinyConnection* con, char* payload, int length);
+    static void Send(TinyConnection* con, char* payload, int length);
 };
 
 class TinyNet {
